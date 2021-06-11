@@ -71,6 +71,7 @@
 static svn_opt_subcommand_t
   subcommand_author,
   subcommand_cat,
+  subcommand_meta,
   subcommand_changed,
   subcommand_date,
   subcommand_diff,
@@ -225,6 +226,13 @@ static const svn_opt_subcommand_desc3_t cmd_table[] =
       "usage: svnlook cat REPOS_PATH FILE_PATH\n"
       "\n"), N_(
       "Print the contents of a file.  Leading '/' on FILE_PATH is optional.\n"
+   )},
+   {'r', 't'} },
+
+  {"meta", subcommand_meta, {0}, {N_(
+      "usage: svnlook meta REPOS_PATH FILE_PATH\n"
+      "\n"), N_(
+      "Print the type and other info of a path.  Leading '/' on FILE_PATH is optional.\n"
    )},
    {'r', 't'} },
 
@@ -1496,6 +1504,37 @@ do_cat(svnlook_ctxt_t *c, const char *path, apr_pool_t *pool)
                           check_cancel, NULL, pool);
 }
 
+static svn_error_t *
+do_meta(svnlook_ctxt_t *c, const char *path, apr_pool_t *pool)
+{
+  svn_fs_root_t *root;
+  svn_node_kind_t kind;
+  svn_stream_t *fstream, *stdout_stream;
+  svn_filesize_t length;
+
+  SVN_ERR(get_root(&root, c, pool));
+  SVN_ERR(verify_path(&kind, root, path, pool));
+
+  if (kind == svn_node_file) {
+    SVN_ERR(svn_cmdline_printf(pool, "kind file\n"));
+
+	SVN_ERR(svn_fs_file_length(&length, root, path, pool));
+    svn_cmdline_printf(pool, "size %" SVN_FILESIZE_T_FMT "\n", length);
+
+
+  } else if (kind == svn_node_dir) {
+    SVN_ERR(svn_cmdline_printf(pool, "kind dir\n"));
+  } else {
+    SVN_ERR(svn_cmdline_printf(pool, "not_found\n"));
+  }
+  SVN_ERR(svn_cmdline_printf(pool, "date "));
+  SVN_ERR(do_date(c, pool));
+  SVN_ERR(svn_cmdline_printf(pool, "message "));
+  SVN_ERR(do_log(c, FALSE, pool));
+  SVN_ERR(svn_cmdline_printf(pool, "author "));
+  SVN_ERR(do_author(c, pool));
+  return SVN_NO_ERROR;
+}
 
 /* Print a list of all paths modified in a format compatible with `svn
    update'. */
@@ -2159,6 +2198,20 @@ subcommand_cat(apr_getopt_t *os, void *baton, apr_pool_t *pool)
 
   SVN_ERR(get_ctxt_baton(&c, opt_state, pool));
   SVN_ERR(do_cat(c, opt_state->arg1, pool));
+  return SVN_NO_ERROR;
+}
+
+/* This implements `svn_opt_subcommand_t'. */
+static svn_error_t *
+subcommand_meta(apr_getopt_t *os, void *baton, apr_pool_t *pool)
+{
+  struct svnlook_opt_state *opt_state = baton;
+  svnlook_ctxt_t *c;
+
+  SVN_ERR(check_number_of_args(opt_state, 1));
+
+  SVN_ERR(get_ctxt_baton(&c, opt_state, pool));
+  SVN_ERR(do_meta(c, opt_state->arg1, pool));
   return SVN_NO_ERROR;
 }
 
