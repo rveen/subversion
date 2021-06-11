@@ -1390,6 +1390,28 @@ do_date(svnlook_ctxt_t *c, apr_pool_t *pool)
   return SVN_NO_ERROR;
 }
 
+do_date_quoted(svnlook_ctxt_t *c, apr_pool_t *pool)
+{
+  svn_string_t *prop_value;
+
+  SVN_ERR(get_property(&prop_value, c, SVN_PROP_REVISION_DATE, pool));
+  if (prop_value && prop_value->data)
+    {
+      /* Convert the date for humans. */
+      apr_time_t aprtime;
+      const char *time_utf8;
+
+      SVN_ERR(svn_time_from_cstring(&aprtime, prop_value->data, pool));
+
+      time_utf8 = svn_time_to_human_cstring(aprtime, pool);
+
+      SVN_ERR(svn_cmdline_printf(pool, "\"%s\"", time_utf8));
+    }
+
+  SVN_ERR(svn_cmdline_printf(pool, "\n"));
+  return SVN_NO_ERROR;
+}
+
 
 /* Print the author of the commit to stdout, followed by a newline. */
 static svn_error_t *
@@ -1528,7 +1550,7 @@ do_meta(svnlook_ctxt_t *c, const char *path, apr_pool_t *pool)
     SVN_ERR(svn_cmdline_printf(pool, "not_found\n"));
   }
   SVN_ERR(svn_cmdline_printf(pool, "date "));
-  SVN_ERR(do_date(c, pool));
+  SVN_ERR(do_date_quoted(c, pool));
   SVN_ERR(svn_cmdline_printf(pool, "message "));
   SVN_ERR(do_log(c, FALSE, pool));
   SVN_ERR(svn_cmdline_printf(pool, "author "));
